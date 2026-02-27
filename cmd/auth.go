@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/the20100/gads-cli/internal/auth"
+	"github.com/the20100/gads-cli/internal/config"
 	"golang.org/x/oauth2"
 )
 
@@ -50,14 +50,14 @@ Or provide values interactively when prompted.`,
 
 func runAuthLogin(cmd *cobra.Command, args []string) error {
 	// Load existing creds as baseline
-	creds, err := auth.Load()
+	creds, err := config.Load()
 	if err != nil {
-		creds = &auth.Credentials{}
+		creds = &config.Credentials{}
 	}
 
 	// --- Collect client_id and client_secret ---
 	if authCredentialsFile != "" {
-		clientID, clientSecret, err := auth.ParseCredentialsFile(authCredentialsFile)
+		clientID, clientSecret, err := config.ParseCredentialsFile(authCredentialsFile)
 		if err != nil {
 			return fmt.Errorf("reading credentials file: %w", err)
 		}
@@ -98,7 +98,7 @@ func runAuthLogin(cmd *cobra.Command, args []string) error {
 	}
 
 	// Exchange code for tokens
-	oauthCfg := auth.NewOAuthConfig(creds)
+	oauthCfg := config.NewOAuthConfig(creds)
 	token, err := oauthCfg.Exchange(context.Background(), code, oauth2.AccessTypeOffline)
 	if err != nil {
 		return fmt.Errorf("exchanging auth code: %w", err)
@@ -109,18 +109,18 @@ func runAuthLogin(cmd *cobra.Command, args []string) error {
 	creds.TokenType = token.TokenType
 	creds.TokenExpiry = token.Expiry
 
-	if err := auth.Save(creds); err != nil {
+	if err := config.Save(creds); err != nil {
 		return fmt.Errorf("saving credentials: %w", err)
 	}
 
 	fmt.Printf("\nAuthentication successful!\n")
-	fmt.Printf("Credentials saved to: %s\n", auth.Path())
+	fmt.Printf("Credentials saved to: %s\n", config.Path())
 	fmt.Printf("Manager account: %s\n", creds.ManagerCustomerID)
 	return nil
 }
 
-func runOAuthFlow(creds *auth.Credentials) (string, error) {
-	oauthCfg := auth.NewOAuthConfig(creds)
+func runOAuthFlow(creds *config.Credentials) (string, error) {
+	oauthCfg := config.NewOAuthConfig(creds)
 
 	// Start a local HTTP server before opening the browser
 	mux := http.NewServeMux()
@@ -173,15 +173,15 @@ var authTokenCmd = &cobra.Command{
 	Use:   "token",
 	Short: "Show the current access token",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		creds, err := auth.Load()
+		creds, err := config.Load()
 		if err != nil {
 			return fmt.Errorf("loading credentials: %w", err)
 		}
 		if creds.RefreshToken == "" {
 			return fmt.Errorf("not authenticated — run: gads-cli auth login")
 		}
-		fmt.Printf("Access Token:   %s\n", maskString(creds.AccessToken))
-		fmt.Printf("Refresh Token:  %s\n", maskString(creds.RefreshToken))
+		fmt.Printf("Access Token:   %s\n", maskOrEmpty(creds.AccessToken))
+		fmt.Printf("Refresh Token:  %s\n", maskOrEmpty(creds.RefreshToken))
 		fmt.Printf("Token Type:     %s\n", creds.TokenType)
 		if !creds.TokenExpiry.IsZero() {
 			fmt.Printf("Token Expiry:   %s\n", creds.TokenExpiry.Format("2006-01-02 15:04:05 UTC"))
@@ -220,19 +220,19 @@ var authStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show current authentication status",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		creds, err := auth.Load()
+		creds, err := config.Load()
 		if err != nil {
 			return fmt.Errorf("loading credentials: %w", err)
 		}
-		fmt.Printf("Config file: %s\n\n", auth.Path())
+		fmt.Printf("Config file: %s\n\n", config.Path())
 		if creds.RefreshToken == "" {
 			fmt.Println("Status: not authenticated")
 			fmt.Println("\nRun: gads-cli auth login")
 			return nil
 		}
 		fmt.Printf("Status:           authenticated\n")
-		fmt.Printf("Client ID:        %s\n", maskString(creds.ClientID))
-		fmt.Printf("Developer Token:  %s\n", maskString(creds.DeveloperToken))
+		fmt.Printf("Client ID:        %s\n", maskOrEmpty(creds.ClientID))
+		fmt.Printf("Developer Token:  %s\n", maskOrEmpty(creds.DeveloperToken))
 		fmt.Printf("Manager Account:  %s\n", creds.ManagerCustomerID)
 		if !creds.TokenExpiry.IsZero() {
 			fmt.Printf("Token Expiry:     %s\n", creds.TokenExpiry.Format("2006-01-02 15:04:05 UTC"))
@@ -247,7 +247,7 @@ var authLogoutCmd = &cobra.Command{
 	Use:   "logout",
 	Short: "Remove saved credentials",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := auth.Clear(); err != nil {
+		if err := config.Clear(); err != nil {
 			return fmt.Errorf("removing credentials: %w", err)
 		}
 		fmt.Println("Credentials removed.")

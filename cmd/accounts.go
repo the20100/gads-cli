@@ -5,7 +5,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/the20100/gads-cli/internal/client"
+	"github.com/the20100/gads-cli/internal/api"
+	"github.com/the20100/gads-cli/internal/config"
 	"github.com/the20100/gads-cli/internal/output"
 )
 
@@ -29,8 +30,12 @@ Examples:
 		}
 
 		// For full details, query customer_client under the MCC.
-		creds, _ := loadCredsForAccount()
-		if creds == "" {
+		creds, _ := config.Load()
+		mccID := ""
+		if creds != nil {
+			mccID = creds.ManagerCustomerID
+		}
+		if mccID == "" {
 			// Fall back to just listing resource names
 			if output.IsJSON(cmd) {
 				return output.PrintJSON(from, output.IsPretty(cmd))
@@ -55,7 +60,7 @@ Examples:
 		WHERE customer_client.level <= 1
 		ORDER BY customer_client.id`
 
-		rows, err := apiClient.Search(creds, query)
+		rows, err := apiClient.Search(api.CleanCustomerID(mccID), query)
 		if err != nil {
 			// Fall back to listing resource names
 			if output.IsJSON(cmd) {
@@ -68,9 +73,9 @@ Examples:
 			return nil
 		}
 
-		var accounts []client.CustomerClient
+		var accounts []api.CustomerClient
 		for _, raw := range rows {
-			var row client.CustomerClientRow
+			var row api.CustomerClientRow
 			if err := json.Unmarshal(raw, &row); err != nil {
 				continue
 			}
@@ -108,15 +113,6 @@ Examples:
 		output.PrintTable(headers, rows2)
 		return nil
 	},
-}
-
-// loadCredsForAccount returns the MCC customer ID from loaded credentials.
-func loadCredsForAccount() (string, error) {
-	creds, err := loadCreds()
-	if err != nil {
-		return "", err
-	}
-	return creds.ManagerCustomerID, nil
 }
 
 func init() {

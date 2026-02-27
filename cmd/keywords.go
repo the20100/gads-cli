@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/the20100/gads-cli/internal/client"
+	"github.com/the20100/gads-cli/internal/api"
 	"github.com/the20100/gads-cli/internal/output"
 )
 
@@ -41,7 +41,7 @@ Examples:
 		if keywordCampaignID == "" {
 			return fmt.Errorf("--campaign is required")
 		}
-		cid := client.CleanCustomerID(keywordAccount)
+		cid := api.CleanCustomerID(keywordAccount)
 
 		query := fmt.Sprintf(`SELECT ad_group_criterion.criterion_id,
 			ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type,
@@ -59,9 +59,9 @@ Examples:
 			return err
 		}
 
-		var keywords []client.KeywordRow
+		var keywords []api.KeywordRow
 		for _, raw := range rows {
-			var row client.KeywordRow
+			var row api.KeywordRow
 			if err := json.Unmarshal(raw, &row); err != nil {
 				continue
 			}
@@ -93,7 +93,7 @@ Examples:
 				r.AdGroupCriterion.Keyword.MatchType,
 				r.AdGroupCriterion.Status,
 				qs,
-				client.MicrosToCurrency(r.AdGroupCriterion.CpcBidMicros),
+				api.MicrosToCurrency(r.AdGroupCriterion.CpcBidMicros),
 				output.Truncate(r.AdGroup.Name, 24),
 			}
 		}
@@ -130,7 +130,7 @@ Examples:
 			return fmt.Errorf("--match-type must be BROAD, PHRASE, or EXACT")
 		}
 
-		cid := client.CleanCustomerID(keywordAccount)
+		cid := api.CleanCustomerID(keywordAccount)
 		adGroupResourceName := fmt.Sprintf("customers/%s/adGroups/%s", cid, keywordAdGroupID)
 
 		ops := []map[string]any{
@@ -190,7 +190,7 @@ Examples:
 		if keywordID == "" {
 			return fmt.Errorf("--keyword is required (format: <adGroupId>~<criterionId>)")
 		}
-		cid := client.CleanCustomerID(keywordAccount)
+		cid := api.CleanCustomerID(keywordAccount)
 		resourceName := fmt.Sprintf("customers/%s/adGroupCriteria/%s", cid, keywordID)
 
 		ops := []map[string]any{
@@ -211,7 +211,7 @@ func setKeywordStatus(account, kwID, status string) error {
 	if kwID == "" {
 		return fmt.Errorf("--keyword is required (format: <adGroupId>~<criterionId>)")
 	}
-	cid := client.CleanCustomerID(account)
+	cid := api.CleanCustomerID(account)
 	resourceName := fmt.Sprintf("customers/%s/adGroupCriteria/%s", cid, kwID)
 
 	ops := []map[string]any{

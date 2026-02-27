@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/the20100/gads-cli/internal/client"
+	"github.com/the20100/gads-cli/internal/api"
 	"github.com/the20100/gads-cli/internal/output"
 )
 
@@ -52,7 +52,7 @@ Examples:
 		if insightsAccount == "" {
 			return fmt.Errorf("--account is required")
 		}
-		cid := client.CleanCustomerID(insightsAccount)
+		cid := api.CleanCustomerID(insightsAccount)
 		dateFilter := buildDateRange(insightsDays, insightsStart, insightsEnd)
 
 		query := fmt.Sprintf(`SELECT campaign.id, campaign.name,
@@ -68,9 +68,9 @@ Examples:
 			return err
 		}
 
-		var results []client.InsightsCampaignRow
+		var results []api.InsightsCampaignRow
 		for _, raw := range rows {
-			var row client.InsightsCampaignRow
+			var row api.InsightsCampaignRow
 			if err := json.Unmarshal(raw, &row); err != nil {
 				continue
 			}
@@ -91,13 +91,13 @@ Examples:
 			tableRows[i] = []string{
 				r.Campaign.ID,
 				output.Truncate(r.Campaign.Name, 30),
-				client.FormatMetricInt(r.Metrics.Impressions),
-				client.FormatMetricInt(r.Metrics.Clicks),
-				client.MicrosToCurrency(r.Metrics.CostMicros),
-				client.FormatCTR(r.Metrics.Ctr),
-				client.MicrosToCurrency(r.Metrics.AverageCpc),
+				api.FormatMetricInt(r.Metrics.Impressions),
+				api.FormatMetricInt(r.Metrics.Clicks),
+				api.MicrosToCurrency(r.Metrics.CostMicros),
+				api.FormatCTR(r.Metrics.Ctr),
+				api.MicrosToCurrency(r.Metrics.AverageCpc),
 				fmt.Sprintf("%.1f", r.Metrics.Conversions),
-				client.FormatROAS(r.Metrics.ConversionsValue, r.Metrics.CostMicros),
+				api.FormatROAS(r.Metrics.ConversionsValue, r.Metrics.CostMicros),
 			}
 		}
 		output.PrintTable(headers, tableRows)
@@ -122,7 +122,7 @@ Examples:
 		if insightsCampaignID == "" {
 			return fmt.Errorf("--campaign is required")
 		}
-		cid := client.CleanCustomerID(insightsAccount)
+		cid := api.CleanCustomerID(insightsAccount)
 		dateFilter := buildDateRange(insightsDays, insightsStart, insightsEnd)
 
 		query := fmt.Sprintf(`SELECT campaign.id, ad_group.id, ad_group.name,
@@ -139,9 +139,9 @@ Examples:
 			return err
 		}
 
-		var results []client.InsightsAdGroupRow
+		var results []api.InsightsAdGroupRow
 		for _, raw := range rows {
-			var row client.InsightsAdGroupRow
+			var row api.InsightsAdGroupRow
 			if err := json.Unmarshal(raw, &row); err != nil {
 				continue
 			}
@@ -162,11 +162,11 @@ Examples:
 			tableRows[i] = []string{
 				r.AdGroup.ID,
 				output.Truncate(r.AdGroup.Name, 36),
-				client.FormatMetricInt(r.Metrics.Impressions),
-				client.FormatMetricInt(r.Metrics.Clicks),
-				client.MicrosToCurrency(r.Metrics.CostMicros),
-				client.FormatCTR(r.Metrics.Ctr),
-				client.MicrosToCurrency(r.Metrics.AverageCpc),
+				api.FormatMetricInt(r.Metrics.Impressions),
+				api.FormatMetricInt(r.Metrics.Clicks),
+				api.MicrosToCurrency(r.Metrics.CostMicros),
+				api.FormatCTR(r.Metrics.Ctr),
+				api.MicrosToCurrency(r.Metrics.AverageCpc),
 				fmt.Sprintf("%.1f", r.Metrics.Conversions),
 			}
 		}
@@ -191,7 +191,7 @@ Examples:
 		if insightsCampaignID == "" {
 			return fmt.Errorf("--campaign is required")
 		}
-		cid := client.CleanCustomerID(insightsAccount)
+		cid := api.CleanCustomerID(insightsAccount)
 		dateFilter := buildDateRange(insightsDays, insightsStart, insightsEnd)
 
 		query := fmt.Sprintf(`SELECT ad_group_criterion.keyword.text,
@@ -210,9 +210,9 @@ Examples:
 			return err
 		}
 
-		var results []client.InsightsKeywordRow
+		var results []api.InsightsKeywordRow
 		for _, raw := range rows {
-			var row client.InsightsKeywordRow
+			var row api.InsightsKeywordRow
 			if err := json.Unmarshal(raw, &row); err != nil {
 				continue
 			}
@@ -233,11 +233,11 @@ Examples:
 			tableRows[i] = []string{
 				output.Truncate(r.AdGroupCriterion.Keyword.Text, 30),
 				r.AdGroupCriterion.Keyword.MatchType,
-				client.FormatMetricInt(r.Metrics.Impressions),
-				client.FormatMetricInt(r.Metrics.Clicks),
-				client.MicrosToCurrency(r.Metrics.CostMicros),
-				client.FormatCTR(r.Metrics.Ctr),
-				client.MicrosToCurrency(r.Metrics.AverageCpc),
+				api.FormatMetricInt(r.Metrics.Impressions),
+				api.FormatMetricInt(r.Metrics.Clicks),
+				api.MicrosToCurrency(r.Metrics.CostMicros),
+				api.FormatCTR(r.Metrics.Ctr),
+				api.MicrosToCurrency(r.Metrics.AverageCpc),
 				fmt.Sprintf("%.1f", r.Metrics.Conversions),
 			}
 		}
@@ -262,7 +262,7 @@ Examples:
 		if insightsCampaignID == "" {
 			return fmt.Errorf("--campaign is required")
 		}
-		cid := client.CleanCustomerID(insightsAccount)
+		cid := api.CleanCustomerID(insightsAccount)
 		dateFilter := buildDateRange(insightsDays, insightsStart, insightsEnd)
 
 		query := fmt.Sprintf(`SELECT search_term_view.search_term, search_term_view.status,
@@ -278,9 +278,9 @@ Examples:
 			return err
 		}
 
-		var results []client.SearchTermRow
+		var results []api.SearchTermRow
 		for _, raw := range rows {
-			var row client.SearchTermRow
+			var row api.SearchTermRow
 			if err := json.Unmarshal(raw, &row); err != nil {
 				continue
 			}
@@ -301,10 +301,10 @@ Examples:
 			tableRows[i] = []string{
 				output.Truncate(r.SearchTermView.SearchTerm, 40),
 				strings.ToLower(r.SearchTermView.Status),
-				client.FormatMetricInt(r.Metrics.Impressions),
-				client.FormatMetricInt(r.Metrics.Clicks),
-				client.MicrosToCurrency(r.Metrics.CostMicros),
-				client.FormatCTR(r.Metrics.Ctr),
+				api.FormatMetricInt(r.Metrics.Impressions),
+				api.FormatMetricInt(r.Metrics.Clicks),
+				api.MicrosToCurrency(r.Metrics.CostMicros),
+				api.FormatCTR(r.Metrics.Ctr),
 				output.Truncate(r.AdGroup.Name, 24),
 			}
 		}

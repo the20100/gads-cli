@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/the20100/gads-cli/internal/client"
+	"github.com/the20100/gads-cli/internal/api"
 	"github.com/the20100/gads-cli/internal/output"
 )
 
@@ -37,7 +37,7 @@ Examples:
 		if adsAdGroupID == "" {
 			return fmt.Errorf("--adgroup is required")
 		}
-		cid := client.CleanCustomerID(adsAccount)
+		cid := api.CleanCustomerID(adsAccount)
 
 		query := fmt.Sprintf(`SELECT ad_group_ad.ad.id, ad_group_ad.ad.type,
 			ad_group_ad.ad.responsive_search_ad.headlines,
@@ -55,9 +55,9 @@ Examples:
 			return err
 		}
 
-		var ads []client.AdRow
+		var ads []api.AdRow
 		for _, raw := range rows {
-			var row client.AdRow
+			var row api.AdRow
 			if err := json.Unmarshal(raw, &row); err != nil {
 				continue
 			}

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/the20100/gads-cli/internal/client"
+	"github.com/the20100/gads-cli/internal/api"
 	"github.com/the20100/gads-cli/internal/output"
 )
 
@@ -36,7 +36,7 @@ Examples:
 		if campaignAccount == "" {
 			return fmt.Errorf("--account is required")
 		}
-		cid := client.CleanCustomerID(campaignAccount)
+		cid := api.CleanCustomerID(campaignAccount)
 
 		query := `SELECT campaign.id, campaign.name, campaign.status,
 			campaign.advertising_channel_type, campaign.bidding_strategy_type,
@@ -51,9 +51,9 @@ Examples:
 			return err
 		}
 
-		var campaigns []client.CampaignRow
+		var campaigns []api.CampaignRow
 		for _, raw := range rows {
-			var row client.CampaignRow
+			var row api.CampaignRow
 			if err := json.Unmarshal(raw, &row); err != nil {
 				continue
 			}
@@ -76,7 +76,7 @@ Examples:
 				output.Truncate(r.Campaign.Name, 36),
 				r.Campaign.Status,
 				formatChannelType(r.Campaign.AdvertisingChannelType),
-				client.MicrosToCurrency(r.CampaignBudget.AmountMicros),
+				api.MicrosToCurrency(r.CampaignBudget.AmountMicros),
 				r.Campaign.StartDate,
 				emptyOrValue(r.Campaign.EndDate),
 			}
@@ -102,7 +102,7 @@ Examples:
 		if campaignID == "" {
 			return fmt.Errorf("--campaign is required")
 		}
-		cid := client.CleanCustomerID(campaignAccount)
+		cid := api.CleanCustomerID(campaignAccount)
 
 		query := fmt.Sprintf(`SELECT campaign.id, campaign.name, campaign.status,
 			campaign.advertising_channel_type, campaign.bidding_strategy_type,
@@ -119,7 +119,7 @@ Examples:
 			return fmt.Errorf("campaign %s not found", campaignID)
 		}
 
-		var row client.CampaignRow
+		var row api.CampaignRow
 		if err := json.Unmarshal(rows[0], &row); err != nil {
 			return fmt.Errorf("parsing response: %w", err)
 		}
@@ -134,7 +134,7 @@ Examples:
 			{"Status", row.Campaign.Status},
 			{"Type", formatChannelType(row.Campaign.AdvertisingChannelType)},
 			{"Bidding", row.Campaign.BiddingStrategyType},
-			{"Daily Budget", client.MicrosToCurrency(row.CampaignBudget.AmountMicros)},
+			{"Daily Budget", api.MicrosToCurrency(row.CampaignBudget.AmountMicros)},
 			{"Budget ID", row.CampaignBudget.ID},
 			{"Start Date", row.Campaign.StartDate},
 			{"End Date", emptyOrValue(row.Campaign.EndDate)},
@@ -179,7 +179,7 @@ func setCampaignStatus(account, campID, status string) error {
 	if campID == "" {
 		return fmt.Errorf("--campaign is required")
 	}
-	cid := client.CleanCustomerID(account)
+	cid := api.CleanCustomerID(account)
 	resourceName := fmt.Sprintf("customers/%s/campaigns/%s", cid, campID)
 
 	ops := []map[string]any{
@@ -217,7 +217,7 @@ Examples:
 		if campaignBudgetAm <= 0 {
 			return fmt.Errorf("--amount is required and must be positive (in micros)")
 		}
-		cid := client.CleanCustomerID(campaignAccount)
+		cid := api.CleanCustomerID(campaignAccount)
 
 		// First fetch the budget resource name from the campaign
 		query := fmt.Sprintf(`SELECT campaign.id, campaign_budget.id
@@ -231,7 +231,7 @@ Examples:
 		if len(rows) == 0 {
 			return fmt.Errorf("campaign %s not found", campaignID)
 		}
-		var row client.CampaignRow
+		var row api.CampaignRow
 		if err := json.Unmarshal(rows[0], &row); err != nil {
 			return fmt.Errorf("parsing response: %w", err)
 		}
@@ -253,7 +253,7 @@ Examples:
 			return err
 		}
 		fmt.Printf("Campaign %s budget updated to %s (budget ID: %s).\n",
-			campaignID, client.MicrosToCurrency(strconv.FormatInt(campaignBudgetAm, 10)), row.CampaignBudget.ID)
+			campaignID, api.MicrosToCurrency(strconv.FormatInt(campaignBudgetAm, 10)), row.CampaignBudget.ID)
 		return nil
 	},
 }

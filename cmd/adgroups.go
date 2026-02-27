@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/the20100/gads-cli/internal/client"
+	"github.com/the20100/gads-cli/internal/api"
 	"github.com/the20100/gads-cli/internal/output"
 )
 
@@ -37,7 +37,7 @@ Examples:
 		if adgroupCampaignID == "" {
 			return fmt.Errorf("--campaign is required")
 		}
-		cid := client.CleanCustomerID(adgroupAccount)
+		cid := api.CleanCustomerID(adgroupAccount)
 
 		query := fmt.Sprintf(`SELECT ad_group.id, ad_group.name, ad_group.status, ad_group.type,
 			ad_group.cpc_bid_micros, campaign.id, campaign.name
@@ -51,9 +51,9 @@ Examples:
 			return err
 		}
 
-		var adgroups []client.AdGroupRow
+		var adgroups []api.AdGroupRow
 		for _, raw := range rows {
-			var row client.AdGroupRow
+			var row api.AdGroupRow
 			if err := json.Unmarshal(raw, &row); err != nil {
 				continue
 			}
@@ -76,7 +76,7 @@ Examples:
 				output.Truncate(r.AdGroup.Name, 40),
 				r.AdGroup.Status,
 				formatChannelType(r.AdGroup.Type),
-				client.MicrosToCurrency(r.AdGroup.CpcBidMicros),
+				api.MicrosToCurrency(r.AdGroup.CpcBidMicros),
 			}
 		}
 		output.PrintTable(headers, tableRows)
@@ -119,7 +119,7 @@ func setAdGroupStatus(account, agID, status string) error {
 	if agID == "" {
 		return fmt.Errorf("--adgroup is required")
 	}
-	cid := client.CleanCustomerID(account)
+	cid := api.CleanCustomerID(account)
 	resourceName := fmt.Sprintf("customers/%s/adGroups/%s", cid, agID)
 
 	ops := []map[string]any{

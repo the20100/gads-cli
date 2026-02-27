@@ -1,4 +1,4 @@
-package client
+package api
 
 import "encoding/json"
 
@@ -49,15 +49,15 @@ type CampaignRow struct {
 
 // Campaign represents a Google Ads campaign.
 type Campaign struct {
-	ResourceName            string `json:"resourceName"`
-	ID                      string `json:"id"`
-	Name                    string `json:"name"`
-	Status                  string `json:"status"`
-	AdvertisingChannelType  string `json:"advertisingChannelType"`
-	BiddingStrategyType     string `json:"biddingStrategyType"`
-	StartDate               string `json:"startDate"`
-	EndDate                 string `json:"endDate"`
-	CampaignBudget          string `json:"campaignBudget"` // resource name string
+	ResourceName           string `json:"resourceName"`
+	ID                     string `json:"id"`
+	Name                   string `json:"name"`
+	Status                 string `json:"status"`
+	AdvertisingChannelType string `json:"advertisingChannelType"`
+	BiddingStrategyType    string `json:"biddingStrategyType"`
+	StartDate              string `json:"startDate"`
+	EndDate                string `json:"endDate"`
+	CampaignBudget         string `json:"campaignBudget"` // resource name string
 }
 
 // CampaignBudget represents a campaign budget.
@@ -137,8 +137,8 @@ type Ad struct {
 
 // AdTextAsset is a headline or description in a responsive search ad.
 type AdTextAsset struct {
-	Text            string `json:"text"`
-	PinnedField     string `json:"pinnedField,omitempty"`
+	Text             string `json:"text"`
+	PinnedField      string `json:"pinnedField,omitempty"`
 	AssetPerformance string `json:"assetPerformanceLabel,omitempty"`
 }
 
