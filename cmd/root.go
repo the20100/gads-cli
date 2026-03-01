@@ -80,6 +80,26 @@ func (s *savingTokenSource) Token() (*oauth2.Token, error) {
 	return token, nil
 }
 
+func maskOrEmpty(v string) string {
+	if v == "" {
+		return "(not set)"
+	}
+	if len(v) <= 8 {
+		return "***"
+	}
+	return v[:4] + "..." + v[len(v)-4:]
+}
+
+// resolveEnv returns the value of the first non-empty environment variable from the given names.
+func resolveEnv(names ...string) string {
+	for _, name := range names {
+		if v := os.Getenv(name); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 func initAPIClient() error {
 	creds, err := config.Load()
 	if err != nil {
@@ -159,14 +179,4 @@ func printInfo() {
 	if !creds.TokenExpiry.IsZero() {
 		fmt.Printf("  token expiry:     %s\n", creds.TokenExpiry.Format("2006-01-02 15:04:05 UTC"))
 	}
-}
-
-func maskOrEmpty(v string) string {
-	if v == "" {
-		return "(not set)"
-	}
-	if len(v) <= 8 {
-		return "***"
-	}
-	return v[:4] + "..." + v[len(v)-4:]
 }
