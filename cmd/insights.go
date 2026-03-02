@@ -24,6 +24,7 @@ var (
 	insightsStart      string
 	insightsEnd        string
 	insightsPeriod     string
+	insightsAll        bool
 )
 
 // parsePeriod converts a period shorthand to (start, end) date strings (YYYY-MM-DD).
@@ -157,13 +158,17 @@ Examples:
 		cid := api.CleanCustomerID(insightsAccount)
 		dateFilter := buildDateRange(insightsPeriod, insightsDays, insightsStart, insightsEnd)
 
-		query := fmt.Sprintf(`SELECT campaign.id, campaign.name,
+		impressionsFilter := ""
+		if !insightsAll {
+			impressionsFilter = "\n		  AND metrics.impressions > 0"
+		}
+		query := fmt.Sprintf(`SELECT campaign.id, campaign.name, campaign.status,
 			metrics.impressions, metrics.clicks, metrics.cost_micros,
 			metrics.ctr, metrics.average_cpc, metrics.conversions, metrics.conversions_value
 		FROM campaign
 		WHERE %s
-		  AND campaign.status != 'REMOVED'
-		ORDER BY metrics.cost_micros DESC`, dateFilter)
+		  AND campaign.status != 'REMOVED'%s
+		ORDER BY metrics.cost_micros DESC`, dateFilter, impressionsFilter)
 
 		rows, err := apiClient.Search(cid, query)
 		if err != nil {
@@ -187,12 +192,13 @@ Examples:
 			return nil
 		}
 
-		headers := []string{"ID", "NAME", "IMPRESSIONS", "CLICKS", "COST", "CTR", "CPC", "CONV", "ROAS"}
+		headers := []string{"ID", "NAME", "STATUS", "IMPRESSIONS", "CLICKS", "COST", "CTR", "CPC", "CONV", "ROAS"}
 		tableRows := make([][]string, len(results))
 		for i, r := range results {
 			tableRows[i] = []string{
 				r.Campaign.ID,
-				output.Truncate(r.Campaign.Name, 30),
+				output.Truncate(r.Campaign.Name, 28),
+				strings.ToLower(r.Campaign.Status),
 				api.FormatMetricInt(r.Metrics.Impressions),
 				api.FormatMetricInt(r.Metrics.Clicks),
 				api.MicrosToCurrency(r.Metrics.CostMicros),
@@ -227,14 +233,18 @@ Examples:
 		cid := api.CleanCustomerID(insightsAccount)
 		dateFilter := buildDateRange(insightsPeriod, insightsDays, insightsStart, insightsEnd)
 
+		impressionsFilter := ""
+		if !insightsAll {
+			impressionsFilter = "\n		  AND metrics.impressions > 0"
+		}
 		query := fmt.Sprintf(`SELECT campaign.id, ad_group.id, ad_group.name,
 			metrics.impressions, metrics.clicks, metrics.cost_micros,
 			metrics.ctr, metrics.average_cpc, metrics.conversions, metrics.conversions_value
 		FROM ad_group
 		WHERE %s
 		  AND campaign.id = '%s'
-		  AND ad_group.status != 'REMOVED'
-		ORDER BY metrics.cost_micros DESC`, dateFilter, insightsCampaignID)
+		  AND ad_group.status != 'REMOVED'%s
+		ORDER BY metrics.cost_micros DESC`, dateFilter, insightsCampaignID, impressionsFilter)
 
 		rows, err := apiClient.Search(cid, query)
 		if err != nil {
@@ -296,6 +306,10 @@ Examples:
 		cid := api.CleanCustomerID(insightsAccount)
 		dateFilter := buildDateRange(insightsPeriod, insightsDays, insightsStart, insightsEnd)
 
+		impressionsFilter := ""
+		if !insightsAll {
+			impressionsFilter = "\n		  AND metrics.impressions > 0"
+		}
 		query := fmt.Sprintf(`SELECT ad_group_criterion.keyword.text,
 			ad_group_criterion.keyword.match_type,
 			ad_group.id, ad_group.name, campaign.id,
@@ -304,8 +318,8 @@ Examples:
 		FROM keyword_view
 		WHERE %s
 		  AND campaign.id = '%s'
-		  AND ad_group_criterion.status != 'REMOVED'
-		ORDER BY metrics.cost_micros DESC`, dateFilter, insightsCampaignID)
+		  AND ad_group_criterion.status != 'REMOVED'%s
+		ORDER BY metrics.cost_micros DESC`, dateFilter, insightsCampaignID, impressionsFilter)
 
 		rows, err := apiClient.Search(cid, query)
 		if err != nil {
@@ -426,6 +440,7 @@ func init() {
 		c.Flags().IntVar(&insightsDays, "days", 30, "Number of days to look back (default 30, ignored when --period is set)")
 		c.Flags().StringVar(&insightsStart, "start", "", "Start date YYYY-MM-DD (overrides --days, ignored when --period is set)")
 		c.Flags().StringVar(&insightsEnd, "end", "", "End date YYYY-MM-DD (overrides --days, ignored when --period is set)")
+		c.Flags().BoolVar(&insightsAll, "all", false, "Include rows with 0 impressions (default: only show rows with activity)")
 	}
 	for _, c := range []*cobra.Command{insightsAdGroupsCmd, insightsKeywordsCmd, insightsSearchTermsCmd} {
 		c.Flags().StringVar(&insightsCampaignID, "campaign", "", "Campaign ID (required)")
