@@ -15,6 +15,8 @@ var accountsCmd = &cobra.Command{
 	Short: "Manage Google Ads accounts",
 }
 
+var accountsVerbose bool
+
 var accountsListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List accessible customer accounts under the MCC",
@@ -22,7 +24,8 @@ var accountsListCmd = &cobra.Command{
 
 Examples:
   gads-cli accounts list
-  gads-cli accounts list --json`,
+  gads-cli accounts list --json
+  gads-cli accounts list --verbose`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		from, err := apiClient.ListAccessibleCustomers()
 		if err != nil {
@@ -33,6 +36,15 @@ Examples:
 		mccID := ""
 		if creds != nil {
 			mccID = api.CleanCustomerID(creds.ManagerCustomerID)
+		}
+
+		if accountsVerbose {
+			fmt.Printf("Manager Account (MCC): %s\n", mccID)
+			fmt.Printf("ListAccessibleCustomers returned %d resource(s):\n", len(from))
+			for _, r := range from {
+				fmt.Printf("  %s\n", r)
+			}
+			fmt.Println()
 		}
 
 		var accounts []api.CustomerClient
@@ -47,7 +59,14 @@ Examples:
 			ORDER BY customer_client.id`
 
 			rows, searchErr := apiClient.Search(mccID, query)
-			if searchErr == nil {
+			if searchErr != nil {
+				if accountsVerbose {
+					fmt.Printf("[strategy 1] customer_client query failed: %v\n\n", searchErr)
+				}
+			} else {
+				if accountsVerbose {
+					fmt.Printf("[strategy 1] customer_client query returned %d rows\n\n", len(rows))
+				}
 				for _, raw := range rows {
 					var row api.CustomerClientRow
 					if json.Unmarshal(raw, &row) == nil && !row.CustomerClient.Manager {
@@ -59,13 +78,22 @@ Examples:
 
 		// Strategy 2: query each accessible customer individually (fallback)
 		if len(accounts) == 0 && len(from) > 0 {
+			if accountsVerbose {
+				fmt.Println("[strategy 2] falling back to per-customer queries")
+			}
 			for _, resourceName := range from {
 				custID := api.ResourceID(resourceName)
 				if custID == mccID {
+					if accountsVerbose {
+						fmt.Printf("  skipping MCC %s\n", custID)
+					}
 					continue // skip the MCC itself
 				}
 				rows, qErr := apiClient.Search(custID, `SELECT customer.id, customer.descriptive_name, customer.currency_code, customer.time_zone, customer.manager, customer.test_account FROM customer`)
 				if qErr != nil {
+					if accountsVerbose {
+						fmt.Printf("  %s: query failed: %v\n", custID, qErr)
+					}
 					continue
 				}
 				for _, raw := range rows {
@@ -108,6 +136,7 @@ Examples:
 }
 
 func init() {
+	accountsListCmd.Flags().BoolVar(&accountsVerbose, "verbose", false, "Show diagnostic info (accessible customers, strategy errors)")
 	accountsCmd.AddCommand(accountsListCmd)
 	rootCmd.AddCommand(accountsCmd)
 }
