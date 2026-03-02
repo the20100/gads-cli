@@ -213,7 +213,7 @@ Examples:
 				api.FormatMetricInt(r.Metrics.Clicks),
 				api.MicrosToCurrency(r.Metrics.CostMicros),
 				api.FormatCTR(r.Metrics.Ctr),
-				api.MicrosToCurrency(r.Metrics.AverageCpc),
+				api.MicrosFloatToCurrency(r.Metrics.AverageCpc),
 				fmt.Sprintf("%.1f", r.Metrics.Conversions),
 				api.FormatROAS(r.Metrics.ConversionsValue, r.Metrics.CostMicros),
 			}
@@ -294,7 +294,7 @@ Examples:
 				api.FormatMetricInt(r.Metrics.Clicks),
 				api.MicrosToCurrency(r.Metrics.CostMicros),
 				api.FormatCTR(r.Metrics.Ctr),
-				api.MicrosToCurrency(r.Metrics.AverageCpc),
+				api.MicrosFloatToCurrency(r.Metrics.AverageCpc),
 				fmt.Sprintf("%.1f", r.Metrics.Conversions),
 			}
 		}
@@ -375,7 +375,7 @@ Examples:
 				api.FormatMetricInt(r.Metrics.Clicks),
 				api.MicrosToCurrency(r.Metrics.CostMicros),
 				api.FormatCTR(r.Metrics.Ctr),
-				api.MicrosToCurrency(r.Metrics.AverageCpc),
+				api.MicrosFloatToCurrency(r.Metrics.AverageCpc),
 				fmt.Sprintf("%.1f", r.Metrics.Conversions),
 			}
 		}

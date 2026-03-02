@@ -227,6 +227,12 @@ func MicrosToCurrency(micros string) string {
 	return fmt.Sprintf("%.2f", float64(n)/1_000_000)
 }
 
+// MicrosFloatToCurrency converts micros returned as a float64 to a currency string.
+// e.g. 406585.47 → "0.41"
+func MicrosFloatToCurrency(micros float64) string {
+	return fmt.Sprintf("%.2f", micros/1_000_000)
+}
+
 // FormatMetricInt formats an int64-as-string metric for display.
 func FormatMetricInt(s string) string {
 	if s == "" {

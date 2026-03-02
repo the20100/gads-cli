@@ -177,13 +177,14 @@ type SearchTermView struct {
 }
 
 // Metrics holds performance metrics returned by GAQL.
-// Integer fields are returned as strings by the Google Ads API.
+// Integer fields (impressions, clicks, costMicros) are returned as strings.
+// Float fields (ctr, averageCpc, conversions, conversionsValue) are returned as numbers.
 type Metrics struct {
 	Impressions      string  `json:"impressions"`
 	Clicks           string  `json:"clicks"`
 	CostMicros       string  `json:"costMicros"`
 	Ctr              float64 `json:"ctr"`
-	AverageCpc       string  `json:"averageCpc"`
+	AverageCpc       float64 `json:"averageCpc"`
 	Conversions      float64 `json:"conversions"`
 	ConversionsValue float64 `json:"conversionsValue"`
 }
