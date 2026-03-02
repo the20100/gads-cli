@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -26,6 +27,7 @@ var (
 	authCredentialsFile string
 	authDeveloperToken  string
 	authManagerAccount  string
+	authNoBrowser       bool
 )
 
 var authLoginCmd = &cobra.Command{
@@ -43,6 +45,13 @@ You need:
 
 Run with a credentials file:
   gads-cli auth login --credentials-file=~/Downloads/client_secret.json
+
+On a remote server (VPS) where no browser is available:
+  gads-cli auth login --credentials-file=~/Downloads/client_secret.json --no-browser
+
+  This prints the auth URL for you to open locally. After authorizing, your
+  browser will redirect to localhost:8080 (which will fail to load — that's ok).
+  Copy the full URL from the address bar and paste it into the terminal.
 
 Or provide values interactively when prompted.`,
 	RunE: runAuthLogin,
@@ -92,7 +101,7 @@ func runAuthLogin(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 	fmt.Println("Starting OAuth2 authorization flow...")
 
-	code, err := runOAuthFlow(creds)
+	code, err := runOAuthFlow(creds, authNoBrowser)
 	if err != nil {
 		return err
 	}
@@ -119,8 +128,13 @@ func runAuthLogin(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runOAuthFlow(creds *config.Credentials) (string, error) {
+func runOAuthFlow(creds *config.Credentials, noBrowser bool) (string, error) {
 	oauthCfg := config.NewOAuthConfig(creds)
+	authURL := oauthCfg.AuthCodeURL("state", oauth2.AccessTypeOffline, oauth2.ApprovalForce)
+
+	if noBrowser {
+		return runOAuthFlowManual(authURL)
+	}
 
 	// Start a local HTTP server before opening the browser
 	mux := http.NewServeMux()
@@ -147,7 +161,6 @@ func runOAuthFlow(creds *config.Credentials) (string, error) {
 	go srv.Serve(ln) //nolint
 	defer srv.Close()
 
-	authURL := oauthCfg.AuthCodeURL("state", oauth2.AccessTypeOffline, oauth2.ApprovalForce)
 	fmt.Printf("\nOpening browser to authorize access...\n")
 	fmt.Printf("If the browser doesn't open, visit:\n%s\n\n", authURL)
 	openBrowser(authURL)
@@ -165,6 +178,37 @@ func runOAuthFlow(creds *config.Credentials) (string, error) {
 	case <-ctx.Done():
 		return "", fmt.Errorf("authorization timed out after 5 minutes")
 	}
+}
+
+func runOAuthFlowManual(authURL string) (string, error) {
+	fmt.Printf("\nOpen the following URL in your browser:\n\n%s\n\n", authURL)
+	fmt.Println("After authorizing, your browser will be redirected to localhost:8080.")
+	fmt.Println("That page will fail to load — that's expected on a remote server.")
+	fmt.Println("Copy the full URL from the browser's address bar and paste it below.")
+	fmt.Print("\nRedirect URL: ")
+
+	reader := bufio.NewReader(os.Stdin)
+	rawURL, err := reader.ReadString('\n')
+	if err != nil {
+		return "", fmt.Errorf("reading redirect URL: %w", err)
+	}
+	rawURL = strings.TrimSpace(rawURL)
+
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "", fmt.Errorf("parsing redirect URL: %w", err)
+	}
+
+	if errMsg := parsed.Query().Get("error"); errMsg != "" {
+		return "", fmt.Errorf("authorization failed: %s", errMsg)
+	}
+
+	code := parsed.Query().Get("code")
+	if code == "" {
+		return "", fmt.Errorf("no authorization code found in URL — make sure you copied the full redirect URL")
+	}
+
+	return code, nil
 }
 
 // ---- auth token ----
@@ -259,6 +303,7 @@ func init() {
 	authLoginCmd.Flags().StringVar(&authCredentialsFile, "credentials-file", "", "Path to Google Cloud credentials JSON file")
 	authLoginCmd.Flags().StringVar(&authDeveloperToken, "developer-token", "", "Google Ads developer token")
 	authLoginCmd.Flags().StringVar(&authManagerAccount, "manager-account", "", "Manager Account (MCC) customer ID")
+	authLoginCmd.Flags().BoolVar(&authNoBrowser, "no-browser", false, "Manual auth flow for remote/VPS: print the URL, prompt for the redirect URL")
 
 	authCmd.AddCommand(authLoginCmd, authTokenCmd, authCheckCmd, authStatusCmd, authLogoutCmd)
 	rootCmd.AddCommand(authCmd)
