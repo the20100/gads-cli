@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,10 +23,109 @@ var (
 	insightsDays       int
 	insightsStart      string
 	insightsEnd        string
+	insightsPeriod     string
 )
 
+// parsePeriod converts a period shorthand to (start, end) date strings (YYYY-MM-DD).
+//
+// Supported formats:
+//
+//	last7d, last14d, last30d, last90d … any lastNd
+//	7d, 30d … any Nd shorthand
+//	lastNm  (months), Ny / lastNy (years)
+//	lastWeek, currentWeek, lastMonth, currentMonth, lastYear, currentYear
+//	today, yesterday
+//	2024, 2025 … any 4-digit year
+func parsePeriod(period string) (start, end string) {
+	now := time.Now()
+	today := now.Format("2006-01-02")
+	p := strings.ToLower(strings.TrimSpace(period))
+
+	switch p {
+	case "today":
+		return today, today
+	case "yesterday":
+		d := now.AddDate(0, 0, -1).Format("2006-01-02")
+		return d, d
+	case "lastweek":
+		wd := int(now.Weekday())
+		if wd == 0 {
+			wd = 7
+		}
+		lastSunday := now.AddDate(0, 0, -wd)
+		lastMonday := lastSunday.AddDate(0, 0, -6)
+		return lastMonday.Format("2006-01-02"), lastSunday.Format("2006-01-02")
+	case "currentweek", "thisweek":
+		wd := int(now.Weekday())
+		if wd == 0 {
+			wd = 7
+		}
+		monday := now.AddDate(0, 0, -(wd - 1))
+		return monday.Format("2006-01-02"), today
+	case "lastmonth":
+		first := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+		lastDay := first.AddDate(0, 0, -1)
+		firstDay := time.Date(lastDay.Year(), lastDay.Month(), 1, 0, 0, 0, 0, time.UTC)
+		return firstDay.Format("2006-01-02"), lastDay.Format("2006-01-02")
+	case "currentmonth", "thismonth":
+		first := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+		return first.Format("2006-01-02"), today
+	case "lastyear":
+		y := now.Year() - 1
+		return fmt.Sprintf("%d-01-01", y), fmt.Sprintf("%d-12-31", y)
+	case "currentyear", "thisyear":
+		return fmt.Sprintf("%d-01-01", now.Year()), today
+	case "1y", "last1y":
+		return now.AddDate(-1, 0, 0).Format("2006-01-02"), today
+	}
+
+	// lastNd → last N days
+	if strings.HasPrefix(p, "last") && strings.HasSuffix(p, "d") {
+		if n, err := strconv.Atoi(p[4 : len(p)-1]); err == nil && n > 0 {
+			return now.AddDate(0, 0, -n).Format("2006-01-02"), today
+		}
+	}
+	// Nd shorthand
+	if strings.HasSuffix(p, "d") {
+		if n, err := strconv.Atoi(p[:len(p)-1]); err == nil && n > 0 {
+			return now.AddDate(0, 0, -n).Format("2006-01-02"), today
+		}
+	}
+	// lastNm / Nm → last N months
+	if strings.HasSuffix(p, "m") {
+		prefix := strings.TrimPrefix(p[:len(p)-1], "last")
+		if n, err := strconv.Atoi(prefix); err == nil && n > 0 {
+			return now.AddDate(0, -n, 0).Format("2006-01-02"), today
+		}
+	}
+	// lastNy / Ny → last N years
+	if strings.HasSuffix(p, "y") {
+		prefix := strings.TrimPrefix(p[:len(p)-1], "last")
+		if n, err := strconv.Atoi(prefix); err == nil && n > 0 {
+			return now.AddDate(-n, 0, 0).Format("2006-01-02"), today
+		}
+	}
+	// 4-digit year: 2024 → full year, current year → up to today
+	if len(p) == 4 {
+		if year, err := strconv.Atoi(p); err == nil && year >= 2000 && year <= now.Year()+1 {
+			if year < now.Year() {
+				return fmt.Sprintf("%d-01-01", year), fmt.Sprintf("%d-12-31", year)
+			}
+			return fmt.Sprintf("%d-01-01", year), today
+		}
+	}
+
+	return "", ""
+}
+
 // buildDateRange returns a GAQL WHERE clause fragment for the date range.
-func buildDateRange(days int, start, end string) string {
+// Priority: --period > --start/--end > --days (default 30).
+func buildDateRange(period string, days int, start, end string) string {
+	if period != "" {
+		if s, e := parsePeriod(period); s != "" {
+			return fmt.Sprintf("segments.date BETWEEN '%s' AND '%s'", s, e)
+		}
+	}
 	if start != "" && end != "" {
 		return fmt.Sprintf("segments.date BETWEEN '%s' AND '%s'", start, end)
 	}
@@ -45,7 +145,9 @@ var insightsCampaignsCmd = &cobra.Command{
 	Long: `Show campaign performance metrics for a given date range.
 
 Examples:
-  gads-cli insights campaigns --account=1234567890 --days=30
+  gads-cli insights campaigns --account=1234567890 --period=last30d
+  gads-cli insights campaigns --account=1234567890 --period=lastMonth
+  gads-cli insights campaigns --account=1234567890 --period=2025
   gads-cli insights campaigns --account=1234567890 --start=2024-01-01 --end=2024-01-31
   gads-cli insights campaigns --account=1234567890 --days=7 --json`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -53,7 +155,7 @@ Examples:
 			return fmt.Errorf("--account is required")
 		}
 		cid := api.CleanCustomerID(insightsAccount)
-		dateFilter := buildDateRange(insightsDays, insightsStart, insightsEnd)
+		dateFilter := buildDateRange(insightsPeriod, insightsDays, insightsStart, insightsEnd)
 
 		query := fmt.Sprintf(`SELECT campaign.id, campaign.name,
 			metrics.impressions, metrics.clicks, metrics.cost_micros,
@@ -123,7 +225,7 @@ Examples:
 			return fmt.Errorf("--campaign is required")
 		}
 		cid := api.CleanCustomerID(insightsAccount)
-		dateFilter := buildDateRange(insightsDays, insightsStart, insightsEnd)
+		dateFilter := buildDateRange(insightsPeriod, insightsDays, insightsStart, insightsEnd)
 
 		query := fmt.Sprintf(`SELECT campaign.id, ad_group.id, ad_group.name,
 			metrics.impressions, metrics.clicks, metrics.cost_micros,
@@ -192,7 +294,7 @@ Examples:
 			return fmt.Errorf("--campaign is required")
 		}
 		cid := api.CleanCustomerID(insightsAccount)
-		dateFilter := buildDateRange(insightsDays, insightsStart, insightsEnd)
+		dateFilter := buildDateRange(insightsPeriod, insightsDays, insightsStart, insightsEnd)
 
 		query := fmt.Sprintf(`SELECT ad_group_criterion.keyword.text,
 			ad_group_criterion.keyword.match_type,
@@ -263,7 +365,7 @@ Examples:
 			return fmt.Errorf("--campaign is required")
 		}
 		cid := api.CleanCustomerID(insightsAccount)
-		dateFilter := buildDateRange(insightsDays, insightsStart, insightsEnd)
+		dateFilter := buildDateRange(insightsPeriod, insightsDays, insightsStart, insightsEnd)
 
 		query := fmt.Sprintf(`SELECT search_term_view.search_term, search_term_view.status,
 			campaign.id, campaign.name, ad_group.id, ad_group.name,
@@ -320,9 +422,10 @@ func init() {
 		insightsKeywordsCmd, insightsSearchTermsCmd,
 	} {
 		c.Flags().StringVar(&insightsAccount, "account", "", "Customer account ID (required)")
-		c.Flags().IntVar(&insightsDays, "days", 30, "Number of days to look back (default 30)")
-		c.Flags().StringVar(&insightsStart, "start", "", "Start date YYYY-MM-DD (overrides --days)")
-		c.Flags().StringVar(&insightsEnd, "end", "", "End date YYYY-MM-DD (overrides --days)")
+		c.Flags().StringVar(&insightsPeriod, "period", "", "Preset period: last7d, last30d, lastWeek, currentWeek, lastMonth, currentMonth, lastYear, currentYear, 2025, last3m, 1y …")
+		c.Flags().IntVar(&insightsDays, "days", 30, "Number of days to look back (default 30, ignored when --period is set)")
+		c.Flags().StringVar(&insightsStart, "start", "", "Start date YYYY-MM-DD (overrides --days, ignored when --period is set)")
+		c.Flags().StringVar(&insightsEnd, "end", "", "End date YYYY-MM-DD (overrides --days, ignored when --period is set)")
 	}
 	for _, c := range []*cobra.Command{insightsAdGroupsCmd, insightsKeywordsCmd, insightsSearchTermsCmd} {
 		c.Flags().StringVar(&insightsCampaignID, "campaign", "", "Campaign ID (required)")
