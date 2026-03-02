@@ -67,16 +67,21 @@ Examples:
 				if accountsVerbose {
 					fmt.Printf("[strategy 1] customer_client query returned %d rows\n", len(rows))
 				}
-				for _, raw := range rows {
+				for i, raw := range rows {
 					var row api.CustomerClientRow
-					if json.Unmarshal(raw, &row) == nil {
-						if accountsVerbose && row.CustomerClient.Manager {
-							fmt.Printf("  [manager, skipped] id=%s name=%q level=%d\n",
-								row.CustomerClient.ID, row.CustomerClient.DescriptiveName, row.CustomerClient.Level)
+					if parseErr := json.Unmarshal(raw, &row); parseErr != nil {
+						if accountsVerbose {
+							fmt.Printf("  [row %d] unmarshal failed: %v\n  raw: %s\n", i, parseErr, string(raw))
 						}
-						if !row.CustomerClient.Manager {
-							accounts = append(accounts, row.CustomerClient)
-						}
+						continue
+					}
+					if accountsVerbose {
+						fmt.Printf("  [row %d] id=%s name=%q manager=%v level=%d\n",
+							i, row.CustomerClient.ID, row.CustomerClient.DescriptiveName,
+							row.CustomerClient.Manager, row.CustomerClient.Level)
+					}
+					if !row.CustomerClient.Manager {
+						accounts = append(accounts, row.CustomerClient)
 					}
 				}
 				if accountsVerbose {
@@ -131,16 +136,21 @@ Examples:
 						if accountsVerbose {
 							fmt.Printf("  %s: customer_client returned %d rows\n", custID, len(ccRows))
 						}
-						for _, raw := range ccRows {
+						for i, raw := range ccRows {
 							var row api.CustomerClientRow
-							if json.Unmarshal(raw, &row) == nil {
-								if accountsVerbose && row.CustomerClient.Manager {
-									fmt.Printf("    [manager, skipped] id=%s name=%q level=%d\n",
-										row.CustomerClient.ID, row.CustomerClient.DescriptiveName, row.CustomerClient.Level)
+							if parseErr := json.Unmarshal(raw, &row); parseErr != nil {
+								if accountsVerbose {
+									fmt.Printf("    [row %d] unmarshal failed: %v\n    raw: %s\n", i, parseErr, string(raw))
 								}
-								if !row.CustomerClient.Manager {
-									accounts = append(accounts, row.CustomerClient)
-								}
+								continue
+							}
+							if accountsVerbose {
+								fmt.Printf("    [row %d] id=%s name=%q manager=%v level=%d\n",
+									i, row.CustomerClient.ID, row.CustomerClient.DescriptiveName,
+									row.CustomerClient.Manager, row.CustomerClient.Level)
+							}
+							if !row.CustomerClient.Manager {
+								accounts = append(accounts, row.CustomerClient)
 							}
 						}
 						continue
