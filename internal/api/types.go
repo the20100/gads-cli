@@ -35,7 +35,7 @@ type CustomerClient struct {
 	CurrencyCode    string `json:"currencyCode"`
 	TimeZone        string `json:"timeZone"`
 	Manager         bool   `json:"manager"`
-	Level           int32  `json:"level"`
+	Level           int32  `json:"level,string"`
 	Hidden          bool   `json:"hidden"`
 	TestAccount     bool   `json:"testAccount"`
 }
