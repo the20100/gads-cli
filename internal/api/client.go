@@ -24,7 +24,7 @@ func New(httpClient *http.Client, developerToken, loginCustomerID string) *Clien
 	return &Client{
 		http:            httpClient,
 		developerToken:  developerToken,
-		loginCustomerID: loginCustomerID,
+		loginCustomerID: CleanCustomerID(loginCustomerID),
 	}
 }
 
@@ -195,9 +195,12 @@ func ResourceID(resourceName string) string {
 	return parts[len(parts)-1]
 }
 
-// CleanCustomerID removes hyphens from a customer ID.
-// e.g. "123-456-7890" → "1234567890"
+// CleanCustomerID normalises a customer ID: strips Optional[...] wrappers and hyphens.
+// e.g. "Optional[345-734-7709]" → "3457347709", "123-456-7890" → "1234567890"
 func CleanCustomerID(id string) string {
+	if strings.HasPrefix(id, "Optional[") && strings.HasSuffix(id, "]") {
+		id = id[len("Optional[") : len(id)-1]
+	}
 	return strings.ReplaceAll(id, "-", "")
 }
 
