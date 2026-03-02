@@ -25,6 +25,7 @@ var (
 	insightsEnd        string
 	insightsPeriod     string
 	insightsAll        bool
+	insightsVerbose    bool
 )
 
 // parsePeriod converts a period shorthand to (start, end) date strings (YYYY-MM-DD).
@@ -170,15 +171,24 @@ Examples:
 		  AND campaign.status != 'REMOVED'%s
 		ORDER BY metrics.cost_micros DESC`, dateFilter, impressionsFilter)
 
+		if insightsVerbose {
+			fmt.Printf("[verbose] account: %s\n[verbose] query:\n%s\n\n", cid, query)
+		}
 		rows, err := apiClient.Search(cid, query)
 		if err != nil {
 			return err
+		}
+		if insightsVerbose {
+			fmt.Printf("[verbose] API returned %d raw rows\n\n", len(rows))
 		}
 
 		var results []api.InsightsCampaignRow
 		for _, raw := range rows {
 			var row api.InsightsCampaignRow
 			if err := json.Unmarshal(raw, &row); err != nil {
+				if insightsVerbose {
+					fmt.Printf("[verbose] unmarshal error: %v\nraw: %s\n", err, string(raw))
+				}
 				continue
 			}
 			results = append(results, row)
@@ -246,9 +256,15 @@ Examples:
 		  AND ad_group.status != 'REMOVED'%s
 		ORDER BY metrics.cost_micros DESC`, dateFilter, insightsCampaignID, impressionsFilter)
 
+		if insightsVerbose {
+			fmt.Printf("[verbose] account: %s\n[verbose] query:\n%s\n\n", cid, query)
+		}
 		rows, err := apiClient.Search(cid, query)
 		if err != nil {
 			return err
+		}
+		if insightsVerbose {
+			fmt.Printf("[verbose] API returned %d raw rows\n\n", len(rows))
 		}
 
 		var results []api.InsightsAdGroupRow
@@ -321,9 +337,15 @@ Examples:
 		  AND ad_group_criterion.status != 'REMOVED'%s
 		ORDER BY metrics.cost_micros DESC`, dateFilter, insightsCampaignID, impressionsFilter)
 
+		if insightsVerbose {
+			fmt.Printf("[verbose] account: %s\n[verbose] query:\n%s\n\n", cid, query)
+		}
 		rows, err := apiClient.Search(cid, query)
 		if err != nil {
 			return err
+		}
+		if insightsVerbose {
+			fmt.Printf("[verbose] API returned %d raw rows\n\n", len(rows))
 		}
 
 		var results []api.InsightsKeywordRow
@@ -389,9 +411,15 @@ Examples:
 		  AND campaign.id = '%s'
 		ORDER BY metrics.impressions DESC`, dateFilter, insightsCampaignID)
 
+		if insightsVerbose {
+			fmt.Printf("[verbose] account: %s\n[verbose] query:\n%s\n\n", cid, query)
+		}
 		rows, err := apiClient.Search(cid, query)
 		if err != nil {
 			return err
+		}
+		if insightsVerbose {
+			fmt.Printf("[verbose] API returned %d raw rows\n\n", len(rows))
 		}
 
 		var results []api.SearchTermRow
@@ -441,6 +469,7 @@ func init() {
 		c.Flags().StringVar(&insightsStart, "start", "", "Start date YYYY-MM-DD (overrides --days, ignored when --period is set)")
 		c.Flags().StringVar(&insightsEnd, "end", "", "End date YYYY-MM-DD (overrides --days, ignored when --period is set)")
 		c.Flags().BoolVar(&insightsAll, "all", false, "Include rows with 0 impressions (default: only show rows with activity)")
+		c.Flags().BoolVar(&insightsVerbose, "verbose", false, "Print the GAQL query and raw row count for debugging")
 	}
 	for _, c := range []*cobra.Command{insightsAdGroupsCmd, insightsKeywordsCmd, insightsSearchTermsCmd} {
 		c.Flags().StringVar(&insightsCampaignID, "campaign", "", "Campaign ID (required)")
