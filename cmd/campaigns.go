@@ -40,7 +40,6 @@ Examples:
 
 		query := `SELECT campaign.id, campaign.name, campaign.status,
 			campaign.advertising_channel_type, campaign.bidding_strategy_type,
-			campaign.start_date, campaign.end_date,
 			campaign_budget.id, campaign_budget.amount_micros
 		FROM campaign
 		WHERE campaign.status != 'REMOVED'
@@ -68,7 +67,7 @@ Examples:
 			return nil
 		}
 
-		headers := []string{"ID", "NAME", "STATUS", "TYPE", "DAILY BUDGET", "START", "END"}
+		headers := []string{"ID", "NAME", "STATUS", "TYPE", "DAILY BUDGET"}
 		tableRows := make([][]string, len(campaigns))
 		for i, r := range campaigns {
 			tableRows[i] = []string{
@@ -77,8 +76,6 @@ Examples:
 				r.Campaign.Status,
 				formatChannelType(r.Campaign.AdvertisingChannelType),
 				api.MicrosToCurrency(r.CampaignBudget.AmountMicros),
-				r.Campaign.StartDate,
-				emptyOrValue(r.Campaign.EndDate),
 			}
 		}
 		output.PrintTable(headers, tableRows)
@@ -106,7 +103,6 @@ Examples:
 
 		query := fmt.Sprintf(`SELECT campaign.id, campaign.name, campaign.status,
 			campaign.advertising_channel_type, campaign.bidding_strategy_type,
-			campaign.start_date, campaign.end_date,
 			campaign_budget.id, campaign_budget.amount_micros
 		FROM campaign
 		WHERE campaign.id = '%s'`, campaignID)
@@ -136,8 +132,6 @@ Examples:
 			{"Bidding", row.Campaign.BiddingStrategyType},
 			{"Daily Budget", api.MicrosToCurrency(row.CampaignBudget.AmountMicros)},
 			{"Budget ID", row.CampaignBudget.ID},
-			{"Start Date", row.Campaign.StartDate},
-			{"End Date", emptyOrValue(row.Campaign.EndDate)},
 			{"Resource", row.Campaign.ResourceName},
 		})
 		return nil
@@ -276,9 +270,3 @@ func formatChannelType(t string) string {
 	return strings.ToLower(strings.ReplaceAll(t, "_", " "))
 }
 
-func emptyOrValue(s string) string {
-	if s == "" {
-		return "-"
-	}
-	return s
-}

@@ -57,7 +57,7 @@ Examples:
 			customer_client.manager, customer_client.level, customer_client.hidden,
 			customer_client.test_account
 		FROM customer_client
-		WHERE customer_client.level <= 1
+		WHERE customer_client.manager = false
 		ORDER BY customer_client.id`
 
 		rows, err := apiClient.Search(api.CleanCustomerID(mccID), query)

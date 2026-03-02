@@ -55,8 +55,6 @@ type Campaign struct {
 	Status                 string `json:"status"`
 	AdvertisingChannelType string `json:"advertisingChannelType"`
 	BiddingStrategyType    string `json:"biddingStrategyType"`
-	StartDate              string `json:"startDate"`
-	EndDate                string `json:"endDate"`
 	CampaignBudget         string `json:"campaignBudget"` // resource name string
 }
 
