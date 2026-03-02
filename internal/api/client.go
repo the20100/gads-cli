@@ -28,6 +28,16 @@ func New(httpClient *http.Client, developerToken, loginCustomerID string) *Clien
 	}
 }
 
+// WithLoginID returns a shallow copy of the client with a different login-customer-id.
+// Useful for querying accounts that are not sub-accounts of the configured MCC.
+func (c *Client) WithLoginID(loginID string) *Client {
+	return &Client{
+		http:            c.http,
+		developerToken:  c.developerToken,
+		loginCustomerID: CleanCustomerID(loginID),
+	}
+}
+
 func (c *Client) doRequest(req *http.Request) ([]byte, error) {
 	req.Header.Set("developer-token", c.developerToken)
 	if c.loginCustomerID != "" {

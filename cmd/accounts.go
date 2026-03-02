@@ -65,18 +65,29 @@ Examples:
 				}
 			} else {
 				if accountsVerbose {
-					fmt.Printf("[strategy 1] customer_client query returned %d rows\n\n", len(rows))
+					fmt.Printf("[strategy 1] customer_client query returned %d rows\n", len(rows))
 				}
 				for _, raw := range rows {
 					var row api.CustomerClientRow
-					if json.Unmarshal(raw, &row) == nil && !row.CustomerClient.Manager {
-						accounts = append(accounts, row.CustomerClient)
+					if json.Unmarshal(raw, &row) == nil {
+						if accountsVerbose && row.CustomerClient.Manager {
+							fmt.Printf("  [manager, skipped] id=%s name=%q level=%d\n",
+								row.CustomerClient.ID, row.CustomerClient.DescriptiveName, row.CustomerClient.Level)
+						}
+						if !row.CustomerClient.Manager {
+							accounts = append(accounts, row.CustomerClient)
+						}
 					}
+				}
+				if accountsVerbose {
+					fmt.Println()
 				}
 			}
 		}
 
-		// Strategy 2: query each accessible customer individually (fallback)
+		// Strategy 2: query each accessible customer individually (fallback).
+		// For top-level accounts not under the configured MCC, retry using
+		// the account's own ID as the login-customer-id.
 		if len(accounts) == 0 && len(from) > 0 {
 			if accountsVerbose {
 				fmt.Println("[strategy 2] falling back to per-customer queries")
@@ -89,12 +100,51 @@ Examples:
 					}
 					continue // skip the MCC itself
 				}
-				rows, qErr := apiClient.Search(custID, `SELECT customer.id, customer.descriptive_name, customer.currency_code, customer.time_zone, customer.manager, customer.test_account FROM customer`)
+
+				q := `SELECT customer.id, customer.descriptive_name, customer.currency_code, customer.time_zone, customer.manager, customer.test_account FROM customer`
+
+				rows, qErr := apiClient.Search(custID, q)
 				if qErr != nil {
 					if accountsVerbose {
-						fmt.Printf("  %s: query failed: %v\n", custID, qErr)
+						fmt.Printf("  %s: default login failed (%v), retrying with self-login\n", custID, qErr)
 					}
-					continue
+					// Retry using the account's own ID as login-customer-id
+					rows, qErr = apiClient.WithLoginID(custID).Search(custID, q)
+					if qErr != nil {
+						if accountsVerbose {
+							fmt.Printf("  %s: self-login also failed: %v\n", custID, qErr)
+						}
+						continue
+					}
+					if accountsVerbose {
+						fmt.Printf("  %s: self-login succeeded, trying customer_client query\n", custID)
+					}
+					// This account is accessible — try customer_client to find sub-accounts
+					ccQuery := `SELECT customer_client.id, customer_client.descriptive_name,
+						customer_client.currency_code, customer_client.time_zone,
+						customer_client.manager, customer_client.level, customer_client.hidden,
+						customer_client.test_account
+					FROM customer_client
+					ORDER BY customer_client.id`
+					ccRows, ccErr := apiClient.WithLoginID(custID).Search(custID, ccQuery)
+					if ccErr == nil && len(ccRows) > 0 {
+						if accountsVerbose {
+							fmt.Printf("  %s: customer_client returned %d rows\n", custID, len(ccRows))
+						}
+						for _, raw := range ccRows {
+							var row api.CustomerClientRow
+							if json.Unmarshal(raw, &row) == nil {
+								if accountsVerbose && row.CustomerClient.Manager {
+									fmt.Printf("    [manager, skipped] id=%s name=%q level=%d\n",
+										row.CustomerClient.ID, row.CustomerClient.DescriptiveName, row.CustomerClient.Level)
+								}
+								if !row.CustomerClient.Manager {
+									accounts = append(accounts, row.CustomerClient)
+								}
+							}
+						}
+						continue
+					}
 				}
 				for _, raw := range rows {
 					var row struct {
