@@ -29,74 +29,67 @@ Examples:
 			return err
 		}
 
-		// For full details, query customer_client under the MCC.
 		creds, _ := config.Load()
 		mccID := ""
 		if creds != nil {
-			mccID = creds.ManagerCustomerID
-		}
-		if mccID == "" {
-			// Fall back to just listing resource names
-			if output.IsJSON(cmd) {
-				return output.PrintJSON(from, output.IsPretty(cmd))
-			}
-			if len(from) == 0 {
-				fmt.Println("No accessible accounts found.")
-				return nil
-			}
-			fmt.Printf("Accessible accounts (%d):\n", len(from))
-			for _, rn := range from {
-				fmt.Printf("  %s\n", rn)
-			}
-			return nil
-		}
-
-		// Query customer_client for richer info
-		query := `SELECT customer_client.id, customer_client.descriptive_name,
-			customer_client.currency_code, customer_client.time_zone,
-			customer_client.manager, customer_client.level, customer_client.hidden,
-			customer_client.test_account
-		FROM customer_client
-		WHERE customer_client.manager = false
-		ORDER BY customer_client.id`
-
-		rows, err := apiClient.Search(api.CleanCustomerID(mccID), query)
-		if err != nil {
-			// Fall back to listing resource names
-			if output.IsJSON(cmd) {
-				return output.PrintJSON(from, output.IsPretty(cmd))
-			}
-			fmt.Printf("Accessible accounts (%d):\n", len(from))
-			for _, rn := range from {
-				fmt.Printf("  %s  (run with MCC configured for full details)\n", rn)
-			}
-			return nil
+			mccID = api.CleanCustomerID(creds.ManagerCustomerID)
 		}
 
 		var accounts []api.CustomerClient
-		for _, raw := range rows {
-			var row api.CustomerClientRow
-			if err := json.Unmarshal(raw, &row); err != nil {
-				continue
+
+		// Strategy 1: customer_client GAQL query (efficient, single call)
+		if mccID != "" {
+			query := `SELECT customer_client.id, customer_client.descriptive_name,
+				customer_client.currency_code, customer_client.time_zone,
+				customer_client.manager, customer_client.level, customer_client.hidden,
+				customer_client.test_account
+			FROM customer_client
+			ORDER BY customer_client.id`
+
+			rows, searchErr := apiClient.Search(mccID, query)
+			if searchErr == nil {
+				for _, raw := range rows {
+					var row api.CustomerClientRow
+					if json.Unmarshal(raw, &row) == nil && !row.CustomerClient.Manager {
+						accounts = append(accounts, row.CustomerClient)
+					}
+				}
 			}
-			accounts = append(accounts, row.CustomerClient)
+		}
+
+		// Strategy 2: query each accessible customer individually (fallback)
+		if len(accounts) == 0 && len(from) > 0 {
+			for _, resourceName := range from {
+				custID := api.ResourceID(resourceName)
+				if custID == mccID {
+					continue // skip the MCC itself
+				}
+				rows, qErr := apiClient.Search(custID, `SELECT customer.id, customer.descriptive_name, customer.currency_code, customer.time_zone, customer.manager, customer.test_account FROM customer`)
+				if qErr != nil {
+					continue
+				}
+				for _, raw := range rows {
+					var row struct {
+						Customer api.CustomerClient `json:"customer"`
+					}
+					if json.Unmarshal(raw, &row) == nil && !row.Customer.Manager {
+						accounts = append(accounts, row.Customer)
+					}
+				}
+			}
 		}
 
 		if output.IsJSON(cmd) {
 			return output.PrintJSON(accounts, output.IsPretty(cmd))
 		}
 		if len(accounts) == 0 {
-			fmt.Println("No client accounts found under MCC.")
+			fmt.Println("No client accounts found.")
 			return nil
 		}
 
-		headers := []string{"ID", "NAME", "CURRENCY", "TIMEZONE", "MANAGER", "TEST"}
+		headers := []string{"ID", "NAME", "CURRENCY", "TIMEZONE", "TEST"}
 		rows2 := make([][]string, len(accounts))
 		for i, a := range accounts {
-			managerStr := ""
-			if a.Manager {
-				managerStr = "yes"
-			}
 			testStr := ""
 			if a.TestAccount {
 				testStr = "yes"
@@ -106,7 +99,6 @@ Examples:
 				output.Truncate(a.DescriptiveName, 40),
 				a.CurrencyCode,
 				output.Truncate(a.TimeZone, 30),
-				managerStr,
 				testStr,
 			}
 		}
