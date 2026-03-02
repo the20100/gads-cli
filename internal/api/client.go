@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const apiBase = "https://googleads.googleapis.com/v19"
+const apiBase = "https://googleads.googleapis.com/v23"
 
 // Client wraps an HTTP client with Google Ads API authentication headers.
 type Client struct {

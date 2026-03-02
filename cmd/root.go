@@ -21,7 +21,7 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "gads-cli",
 	Short: "Google Ads CLI — manage Google Ads via the REST API",
-	Long: `gads-cli is a command-line tool for the Google Ads API v19.
+	Long: `gads-cli is a command-line tool for the Google Ads API v23.
 
 It outputs JSON when piped (for agent/script use) and human-readable
 tables when running in a terminal.
