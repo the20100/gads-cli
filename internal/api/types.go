@@ -107,7 +107,7 @@ type AdGroupCriterion struct {
 	CpcBidMicros string `json:"cpcBidMicros"`
 }
 
-// AdRow is a GAQL result row for ad_group_ad queries.
+// AdRow is a GAQL result row for ad_group_ad queries (non-insights).
 type AdRow struct {
 	AdGroupAd AdGroupAd `json:"adGroupAd"`
 	AdGroup   AdGroup   `json:"adGroup"`
@@ -124,13 +124,27 @@ type AdGroupAd struct {
 
 // Ad represents the ad itself.
 type Ad struct {
-	ID                 string   `json:"id"`
-	Type               string   `json:"type"`
-	FinalUrls          []string `json:"finalUrls"`
-	ResponsiveSearchAd struct {
+	ID                  string   `json:"id"`
+	Name                string   `json:"name"`
+	Type                string   `json:"type"`
+	FinalUrls           []string `json:"finalUrls"`
+	FinalMobileUrls     []string `json:"finalMobileUrls"`
+	TrackingUrlTemplate string   `json:"trackingUrlTemplate"`
+	FinalUrlSuffix      string   `json:"finalUrlSuffix"`
+	DisplayUrl          string   `json:"displayUrl"`
+	ResponsiveSearchAd  struct {
 		Headlines    []AdTextAsset `json:"headlines"`
 		Descriptions []AdTextAsset `json:"descriptions"`
+		Path1        string        `json:"path1"`
+		Path2        string        `json:"path2"`
 	} `json:"responsiveSearchAd"`
+	ExpandedTextAd struct {
+		HeadlinePart1 string `json:"headlinePart1"`
+		HeadlinePart2 string `json:"headlinePart2"`
+		HeadlinePart3 string `json:"headlinePart3"`
+		Description   string `json:"description"`
+		Description2  string `json:"description2"`
+	} `json:"expandedTextAd"`
 }
 
 // AdTextAsset is a headline or description in a responsive search ad.
@@ -176,9 +190,17 @@ type SearchTermView struct {
 	Status       string `json:"status"`
 }
 
+// InsightsAdRow is a GAQL result row for ad-level insights.
+type InsightsAdRow struct {
+	AdGroupAd AdGroupAd `json:"adGroupAd"`
+	AdGroup   AdGroup   `json:"adGroup"`
+	Campaign  Campaign  `json:"campaign"`
+	Metrics   Metrics   `json:"metrics"`
+}
+
 // Metrics holds performance metrics returned by GAQL.
 // Integer fields (impressions, clicks, costMicros) are returned as strings.
-// Float fields (ctr, averageCpc, conversions, conversionsValue) are returned as numbers.
+// Float fields (ctr, averageCpc, conversions, conversionsValue, etc.) are returned as numbers.
 type Metrics struct {
 	Impressions      string  `json:"impressions"`
 	Clicks           string  `json:"clicks"`
@@ -187,6 +209,14 @@ type Metrics struct {
 	AverageCpc       float64 `json:"averageCpc"`
 	Conversions      float64 `json:"conversions"`
 	ConversionsValue float64 `json:"conversionsValue"`
+
+	// Extended metrics
+	AbsoluteTopImpressionPercentage float64 `json:"absoluteTopImpressionPercentage"`
+	TopImpressionPercentage         float64 `json:"topImpressionPercentage"`
+	ViewThroughConversions          string  `json:"viewThroughConversions"`
+	CostPerConversion               float64 `json:"costPerConversion"`
+	ConversionsFromInteractionsRate float64 `json:"conversionsFromInteractionsRate"`
+	SearchImpressionShare           float64 `json:"searchImpressionShare"`
 }
 
 // MutateResponse is the response from mutate endpoints.

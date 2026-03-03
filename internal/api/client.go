@@ -250,6 +250,12 @@ func FormatCTR(ctr float64) string {
 	return fmt.Sprintf("%.2f%%", ctr*100)
 }
 
+// FormatPct formats a float64 fraction (0.0–1.0) as a percentage string.
+// e.g. 0.4523 → "45.23%"
+func FormatPct(f float64) string {
+	return fmt.Sprintf("%.2f%%", f*100)
+}
+
 // FormatROAS calculates and formats ROAS.
 func FormatROAS(conversionsValue float64, costMicros string) string {
 	n, err := strconv.ParseInt(costMicros, 10, 64)
